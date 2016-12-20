@@ -24,36 +24,6 @@ The usage is very simple, just need to set the push url, and add image into it.
 
 用起来很简单，设置下推送的url，然后往里面填充image吧。
 
-var pusher = new Pusher();
-pusher.StartPush(pushUrl, width, height, frameRate);
-var encoder = new Encoder(width, height, frameRate);
-encoder.FrameEncoded += (sender, e) =>
-{
-	//A frame encoded.
-	var packet = e.Packet;
-	pusher.PushPacket(packet);
-	Console.WriteLine($"Packet pushed, size:{packet.Size}.");
-};
-//Push your images.
-for (int i = 0; i < images.Length; i++)
-{
-	var bitmap = new Bitmap(images[i]);
-	Rectangle rect = new Rectangle(0, 0, width, height);
-	BitmapData bmpData = bitmap.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
-	IntPtr ptr = bmpData.Scan0;
-	int pixels = width*height;
-	byte[] rgbValues = new byte[pixels*4];
-	Marshal.Copy(ptr, rgbValues, 0, pixels*4);
-	bitmap.UnlockBits(bmpData);
-	encoder.AddImage(rgbValues);
-	bitmap.Dispose();
-}
- //Flush
-encoder.Flush();
-//Dispose
-pusher.StopPush();
-pusher.Dispose();
-encoder.Dispose();
 
 Any question please contact me with email: ithinkso117#163.com.
 任何问题欢迎联系我共同探讨，邮箱：ithinkso117#163.com

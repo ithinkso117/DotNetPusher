@@ -34,7 +34,7 @@ namespace Test
             var encoder = new Encoder(width, height, frameRate);
             encoder.FrameEncoded += (sender, e) =>
             {
-                //Onec a frame encoded.
+                //A frame encoded.
                 var packet = e.Packet;
                 pusher.PushPacket(packet);
                 Console.WriteLine($"Packet pushed, size:{packet.Size}.");

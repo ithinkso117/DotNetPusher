@@ -1,0 +1,80 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="dllmain.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoder.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Pusher.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="VideoFrame.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="VideoPacket.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="NativePusher.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Encoder.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="ErrorCode.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Pusher.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="VideoFrame.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="VideoPacket.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="NativePusher.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Libs">
+      <UniqueIdentifier>{284d1bec-c029-4bf1-8937-5f8b6d5a824e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header">
+      <UniqueIdentifier>{2d146763-9cf2-4e09-afe6-d5d6e63ccfb6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{84006570-54ae-4f9b-ab93-54fd735450cc}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="include\x86\avcodec.lib">
+      <Filter>Libs</Filter>
+    </Library>
+    <Library Include="include\x86\avformat.lib">
+      <Filter>Libs</Filter>
+    </Library>
+    <Library Include="include\x86\avutil.lib">
+      <Filter>Libs</Filter>
+    </Library>
+    <Library Include="include\x86\swscale.lib">
+      <Filter>Libs</Filter>
+    </Library>
+  </ItemGroup>
+</Project>

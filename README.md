@@ -13,7 +13,9 @@ It's easy to use FFMpeg.exe to push video stream to a rtmp server, but no answer
 People who knows the usage never share their knowledge.
 Most of the code you found in internet do not work :(.
 
-我注意到有一堵无形的墙挡在使用FFmpeg的“新人”和“大师”
+我注意到有一堵无形的墙挡在使用FFmpeg的“新人”和“大师”之间，使用FFMpeg.exe来推送视频流到rtmp服务器非常简单，但是对于写代码调用FFMpeg的库而言却没人答案，
+知道怎么用的人从不分享他们所知道的知识。
+大部分从网上找到的代码都不能工作:(
 
 So I decide share this project for people who needs this. 
 

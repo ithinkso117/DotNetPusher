@@ -28,19 +28,7 @@ Encoder::Encoder(int width, int height, int frame_rate, int bit_rate, FrameEncod
 	av_register_all();
 	avcodec_register_all();
 	
-	//Try open qsv
-	init_qsv_context(m_width, m_height, m_frame_rate, bit_rate);
-	if (m_codec_context != nullptr)
-	{
-		Utils::write_log("Try use Intel QuickSync Video encoder.");
-	}
-
-	if (m_codec_context == nullptr)
-	{
-		init_h264_context(m_width, m_height, m_frame_rate, bit_rate);
-		Utils::write_log("Use software encoder.");
-	}
-
+    init_h264_context(m_width, m_height, m_frame_rate, bit_rate);
 	if (m_codec_context == nullptr)
 	{
 		Utils::write_log("Can not create CodecContext.");
@@ -87,6 +75,7 @@ Encoder::Encoder(int width, int height, int frame_rate, int bit_rate, FrameEncod
 		free_all();
 		throw ERROR_CREATE_ENCODER;
 	}
+	Utils::write_log("Encoder initialized.");
 }
 
 
@@ -150,38 +139,6 @@ void Encoder::free_all()
 	}
 }
 
-void Encoder::init_qsv_context(int width, int height, int frame_rate, int bit_rate)
-{
-	const auto codec = avcodec_find_encoder_by_name("h264_qsv");
-	if (codec == nullptr)
-	{
-		return;
-	}
-	auto codec_context = avcodec_alloc_context3(codec);
-	if (codec_context == nullptr)
-	{
-		return;
-	}
-
-	codec_context->width = width; //Width
-	codec_context->height = height; //Height
-	codec_context->time_base = { 1, frame_rate };  //Frames per second
-	codec_context->pix_fmt = *codec->pix_fmts;
-	codec_context->thread_count = 1; //Use single thread.
-	codec_context->bit_rate = bit_rate;// Put sample parameters   
-	codec_context->gop_size = frame_rate; // Set gop size to the frame rate.    
-	codec_context->max_b_frames = 1; //B frames
-
-	//qsv is very fast, so here can use profile main.
-	av_opt_set(codec_context->priv_data, "profile", "main", 0);
-
-	if (avcodec_open2(codec_context, codec, nullptr) < 0)
-	{
-		avcodec_free_context(&codec_context);
-		return;
-	}
-	m_codec_context = codec_context;
-}
 
 void Encoder::init_h264_context(int width, int height, int frame_rate, int bit_rate)
 {
@@ -208,7 +165,8 @@ void Encoder::init_h264_context(int width, int height, int frame_rate, int bit_r
 	//Set parameters
 	AVDictionary *options = nullptr;
 	av_dict_set(&options, "profile", "baseline", 0);
-	av_dict_set(&options, "preset", "fast", 0);
+	av_dict_set(&options, "tune", "zerolatency", 0);
+	av_dict_set(&options, "preset", "superfast", 0);
 
 	if (avcodec_open2(codec_context, codec, &options) < 0)
 	{

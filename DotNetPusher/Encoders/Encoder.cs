@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using DotNetPusher.VideoPackets;
 
 namespace DotNetPusher.Encoders
@@ -11,6 +14,10 @@ namespace DotNetPusher.Encoders
         private FrameEncodedCallback _myFrameEncodedCallback;
         private bool _disposed;
 
+        private readonly Bitmap _layerImage;
+        private readonly Graphics _layerGraphics;
+        private readonly Rectangle _layerRect;
+        private readonly int _layerDataSzie;
 
         public event EventHandler<FrameEncodedEventArgs> FrameEncoded;
 
@@ -24,6 +31,10 @@ namespace DotNetPusher.Encoders
             {
                 throw new PusherException(result);
             }
+            _layerImage = new Bitmap(width,height);
+            _layerGraphics = Graphics.FromImage(_layerImage);
+            _layerRect = new Rectangle(0,0,width,height);
+            _layerDataSzie = width * height * 4;
         }
 
         ~Encoder()
@@ -54,17 +65,29 @@ namespace DotNetPusher.Encoders
         /// <summary>
         /// Only support BGRA data.
         /// </summary>
-        /// <param name="imageData"></param>
+        /// <param name="image"></param>
         /// <returns></returns>
-        public void AddImage(byte[] imageData)
+        public void AddImage(Bitmap image)
         {
+            var processImage = _layerImage;
+            if (image.Width == _layerImage.Width && image.Height == _layerImage.Height)
+            {
+                processImage = image;
+            }
+            else
+            {
+                _layerGraphics.DrawImage(image, _layerRect);
+            }
+            var bmpData = processImage.LockBits(_layerRect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
             var result = Environment.Is64BitProcess ?
-                Interop64.AddImage(_encoderHandle, imageData, imageData.Length):
-                Interop32.AddImage(_encoderHandle, imageData, imageData.Length);
+                Interop64.AddImage(_encoderHandle, bmpData.Scan0, _layerDataSzie) :
+                Interop32.AddImage(_encoderHandle, bmpData.Scan0, _layerDataSzie);
             if (result != 0)
             {
                 throw new PusherException(result);
             }
+            processImage.UnlockBits(bmpData);
+
         }
 
         private void DoDispose()
@@ -80,6 +103,8 @@ namespace DotNetPusher.Encoders
                 {
                    Interop32.DestroyEncoder(_encoderHandle);
                 }
+                _layerGraphics.Dispose();
+                _layerImage.Dispose();
                 _disposed = true;
             }
         }

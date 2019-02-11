@@ -58,6 +58,6 @@ inline void Utils::write_log(char* log)
 	}
 	else
 	{
-		printf(log);
+		printf("%s\n",log);
 	}
 }

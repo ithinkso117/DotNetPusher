@@ -1,79 +1,98 @@
 ﻿using System;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+using DotNetPusher.Encoders;
 using DotNetPusher.Pushers;
-using Encoder = DotNetPusher.Encoders.Encoder;
 
 namespace Test
 {
     class Program
     {
-        private static void Main(string[] args)
+        [DllImport("user32.dll")]
+        public static extern int GetSystemMetrics(int index);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetDC(IntPtr hWnd);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool BitBlt([In] IntPtr hdc, int nXDest, int nYDest, int nWidth, int nHeight, [In] IntPtr hdcSrc, int nXSrc, int nYSrc, uint dwRop);
+
+        [DllImport("user32.dll")]
+        private static extern bool ReleaseDC(IntPtr hWnd, IntPtr hdc);
+
+
+        private static void Main()
         {
             //The url to push.
             var pushUrl = "rtmp://localhost:1935/live/stream";
 
             //Push frame rate.
-            var frameRate = 24;
+            var frameRate = 15;
+            var waitInterval = 1000 / frameRate;
 
-            var screenSize = new Size(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
+
+            var screenWidth = GetSystemMetrics(0);
+            var screenHeight = GetSystemMetrics(1);
 
             //Define the width and height
-            var width = screenSize.Width;
-            var height = screenSize.Height;
-
-            Console.WriteLine("Press any key to start push.");
-            Console.ReadLine();
+            var width = screenWidth;
+            var height = screenHeight;
 
             var pusher = new Pusher();
             pusher.StartPush(pushUrl, width, height, frameRate);
-            var encoder = new Encoder(width, height, frameRate, 8000);
-            encoder.FrameEncoded += (sender, e) =>
-            {
-                //A frame encoded.
-                var packet = e.Packet;
-                pusher.PushPacket(packet);
-                Console.WriteLine($"Packet pushed, size:{packet.Size}.");
-            };
+            
+            var stopEvent = new ManualResetEvent(false);
 
-            var bitmap = new Bitmap(screenSize.Width, screenSize.Height);
-            var graphic = Graphics.FromImage(bitmap);
-            bool stop = false;
-            Task.Run(() =>
+            var thread = new Thread(() =>
             {
-                while (!stop)
+                var encoder = new Encoder(width, height, frameRate, 1024*800);
+                encoder.FrameEncoded += (sender, e) =>
                 {
-                    graphic.CopyFromScreen(0, 0, 0, 0, screenSize);
-                    Rectangle rect = new Rectangle(0, 0, width, height);
-                    BitmapData bmpData = bitmap.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
-                    IntPtr ptr = bmpData.Scan0;
-                    int pixels = width * height;
-                    byte[] rgbValues = new byte[pixels * 4];
-                    Marshal.Copy(ptr, rgbValues, 0, pixels * 4);
-                    bitmap.UnlockBits(bmpData);
-                    encoder.AddImage(rgbValues);
-                    Thread.Sleep(1000/24);
+                    //A frame encoded.
+                    var packet = e.Packet;
+                    pusher.PushPacket(packet);
+                    Console.WriteLine($"Packet pushed, size:{packet.Size}.");
+                };
+                var screenDc = GetDC(IntPtr.Zero);
+                var bitmap = new Bitmap(screenWidth, screenHeight);
+
+                try
+                {
+                    while (!stopEvent.WaitOne(1))
+                    {
+                        var start = Environment.TickCount;
+                        using (var graphic = Graphics.FromImage(bitmap))
+                        {
+                            var imageDc = graphic.GetHdc();
+                            BitBlt(imageDc, 0, 0, width, height, screenDc, 0, 0, 0x00CC0020);
+                        }
+                        encoder.AddImage(bitmap);
+                        var timeUsed = Environment.TickCount - start;
+                        var timeToWait = waitInterval - timeUsed;
+                        Thread.Sleep(timeToWait<0? 0: timeToWait);
+                    }
+                    encoder.Flush();
+                }
+                finally
+                {
+                    encoder.Dispose();
+                    bitmap.Dispose();
+                    ReleaseDC(IntPtr.Zero, screenDc);
                 }
             });
+           
+            thread.Start();
+
             Console.ReadLine();
-            stop = true;
 
-            Thread.Sleep(1000);
+            stopEvent.Set();
 
-            //Flush
-            encoder.Flush();
+            thread.Join();
             pusher.StopPush();
             pusher.Dispose();
-            encoder.Dispose();
 
-            graphic.Dispose();
-            bitmap.Dispose();
-
-            Console.WriteLine("Finished!");
+            Console.WriteLine("Stopped!");
             Console.ReadLine();
 
         }

@@ -25,7 +25,6 @@ class Encoder final
 	FrameEncodedCallback m_frame_encoded_callback;
 	void encode_frame(bool flush);
 	void free_all();
-	void init_qsv_context(int width, int height, int frame_rate, int bit_rate);
 	void init_h264_context(int width, int height, int frame_rate, int bit_rate);
 public:
 	Encoder(int width, int height, int frame_rate, int bit_rate, FrameEncodedCallback frame_encoded_callback);

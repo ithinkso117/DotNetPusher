@@ -15,7 +15,7 @@ namespace DotNetPusher.Encoders
             public static extern void DestroyEncoder(IntPtr hEncoder);
 
             [DllImport("x86\\NativePusher.x86.dll", EntryPoint = "AddImage", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
-            public static extern int AddImage(IntPtr hEncoder,byte[] imageData, int dataLength);
+            public static extern int AddImage(IntPtr hEncoder,IntPtr imageData, int dataLength);
 
             [DllImport("x86\\NativePusher.x86.dll", EntryPoint = "FlushEncoder", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
             public static extern int FlushEncoder(IntPtr hEncoder);

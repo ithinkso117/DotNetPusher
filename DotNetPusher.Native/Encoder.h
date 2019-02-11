@@ -10,21 +10,26 @@ extern "C"
 
 class VideoPacket;
 
-typedef void(__stdcall *FrameEncodedCallback)(void* encoder, VideoPacket* videoPacket);
+typedef void(__stdcall *FrameEncodedCallback)(void* encoder, VideoPacket* video_packet);
 
-class Encoder
+class Encoder final
 {
-private:
-	SwsContext* m_swsContext;
-	AVCodecContext* m_codecContext;
-	AVFrame* m_yuvFrame;
-	int m_encodedIndex;
+	SwsContext* m_sws_context{};
+	AVCodecContext* m_codec_context;
+	AVFrame* m_yuv_frame{};
+	AVFrame* m_bgra_frame{};
+	int m_encoded_index;
 	int m_width;
 	int m_height;
-	FrameEncodedCallback m_frameEncoded;
+	int m_frame_rate;
+	FrameEncodedCallback m_frame_encoded_callback;
+	void encode_frame(bool flush);
+	void free_all();
+	void init_qsv_context(int width, int height, int frame_rate, int bit_rate);
+	void init_h264_context(int width, int height, int frame_rate, int bit_rate);
 public:
-	Encoder(int width, int height, int frameRate, FrameEncodedCallback frameEncodedCallback);
+	Encoder(int width, int height, int frame_rate, int bit_rate, FrameEncodedCallback frame_encoded_callback);
 	~Encoder();
-	void AddImage(char* imageData, int dataLength);
+	void AddImage(uint8_t* image_data);
 	void Flush();
 };

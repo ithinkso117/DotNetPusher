@@ -12,19 +12,20 @@ VideoFrame::VideoFrame(AVFrame* frame, int index)
 VideoFrame::~VideoFrame()
 {
 	av_frame_free(&m_frame);
+	m_frame = nullptr;
 }
 
-int VideoFrame::GetIndex()
+int VideoFrame::get_index() const
 {
 	return m_index;
 }
 
-int VideoFrame::GetSize()
+int VideoFrame::get_size() const
 {
 	return m_size;
 }
 
-char* VideoFrame::GetData()
+char* VideoFrame::get_data() const
 {
 	return reinterpret_cast<char*>(m_frame->data[0]);
 }

@@ -8,8 +8,6 @@ namespace DotNetPusher.VideoFrames
         private readonly IntPtr _frameHandle;
         private bool _disposed;
 
-        public IntPtr Handle => _frameHandle;
-
         public int Index { get; }
 
         public int Size { get; }

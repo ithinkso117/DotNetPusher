@@ -9,7 +9,7 @@ namespace DotNetPusher.Encoders
         {
 
             [DllImport("x86\\NativePusher.x86.dll", EntryPoint = "CreateEncoder", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
-            public static extern int CreateEncoder(out IntPtr hEncoder,int width, int height, int frameRate, FrameEncodedCallback frameEncodedCallback);
+            public static extern int CreateEncoder(out IntPtr hEncoder,int width, int height, int frameRate,int bitRate, FrameEncodedCallback frameEncodedCallback);
 
             [DllImport("x86\\NativePusher.x86.dll", EntryPoint = "DestroyEncoder", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
             public static extern void DestroyEncoder(IntPtr hEncoder);

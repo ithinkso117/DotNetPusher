@@ -1,10 +1,11 @@
 #pragma once
+#include <cstdint>
 
 extern "C" {
 
-_declspec(dllexport) int __stdcall CreateEncoder(void** hEncoder,int width, int height, int frameRate, void* frameEncodedCallback);
+_declspec(dllexport) int __stdcall CreateEncoder(void** hEncoder, int width, int height, int frame_rate, int bit_rate, void* frameEncodedCallback);
 _declspec(dllexport) void __stdcall DestroyEncoder(void* hEncoder);
-_declspec(dllexport) int __stdcall AddImage(void* hEncoder, char* imageData, int dataLength);
+_declspec(dllexport) int __stdcall AddImage(void* hEncoder, uint8_t* image_data);
 _declspec(dllexport) int __stdcall FlushEncoder(void* hEncoder);
 
 _declspec(dllexport) int __stdcall CreatePusher(void** hPusher);

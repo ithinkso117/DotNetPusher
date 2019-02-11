@@ -14,8 +14,8 @@ class VideoFrame
 public:
 	VideoFrame(AVFrame* frame, int index);
 	~VideoFrame();
-	int GetIndex();
-	int GetSize();
-	char* GetData();
+	int get_index() const;
+	int get_size() const;
+	char* get_data() const;
 };
 

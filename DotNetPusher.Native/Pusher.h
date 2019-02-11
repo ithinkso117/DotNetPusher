@@ -12,14 +12,15 @@ extern "C"
 
 class Pusher
 {
-	AVFormatContext* m_formatContext;
-	AVCodecContext* m_codecContext;
-	int64_t m_startTime;
+	AVFormatContext* m_format_context{};
+	AVCodecContext* m_codec_context;
+	int64_t m_start_time{};
 	bool m_stopped;
+	void free_all();
 public:
 	Pusher();
 	~Pusher();
-	void StartPush(std::string url, int width, int height, int frameRate);
-	void StopPush();
-	void PushVideoPacket(VideoPacket* videoPacket);
+	void start_push(std::string url, int width, int height, int frame_rate);
+	void stop_push();
+	void push_video_packet(VideoPacket* video_packet);
 };

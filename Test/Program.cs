@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using DotNetPusher.Pushers;
 using Encoder = DotNetPusher.Encoders.Encoder;
 
@@ -13,25 +15,23 @@ namespace Test
         private static void Main(string[] args)
         {
             //The url to push.
-            var pushUrl = "rtmp://localhost:1395/live/stream";
+            var pushUrl = "rtmp://localhost:1935/live/stream";
 
             //Push frame rate.
             var frameRate = 24;
 
-            //Define the width and height
-            var width = 1280;
-            var height = 720;
+            var screenSize = new Size(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height);
 
-            //All images in the folder should have the same width and height.
-            var imageFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Images");
-            var images = Directory.GetFiles(imageFolder);
+            //Define the width and height
+            var width = screenSize.Width;
+            var height = screenSize.Height;
 
             Console.WriteLine("Press any key to start push.");
             Console.ReadLine();
 
             var pusher = new Pusher();
             pusher.StartPush(pushUrl, width, height, frameRate);
-            var encoder = new Encoder(width, height, frameRate);
+            var encoder = new Encoder(width, height, frameRate, 8000);
             encoder.FrameEncoded += (sender, e) =>
             {
                 //A frame encoded.
@@ -40,33 +40,42 @@ namespace Test
                 Console.WriteLine($"Packet pushed, size:{packet.Size}.");
             };
 
-            for (int x = 0; x < 1; x++)
+            var bitmap = new Bitmap(screenSize.Width, screenSize.Height);
+            var graphic = Graphics.FromImage(bitmap);
+            bool stop = false;
+            Task.Run(() =>
             {
-                for (int i = 0; i < images.Length; i++)
+                while (!stop)
                 {
-                    var bitmap = new Bitmap(images[i]);
-                    Graphics g = Graphics.FromImage(bitmap);
-                    g.DrawString(((x* images.Length) + i).ToString(), new Font(FontFamily.GenericSansSerif, 20, FontStyle.Bold), Brushes.LawnGreen, new PointF(1, 20));
-                    g.Dispose();
+                    graphic.CopyFromScreen(0, 0, 0, 0, screenSize);
                     Rectangle rect = new Rectangle(0, 0, width, height);
                     BitmapData bmpData = bitmap.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
                     IntPtr ptr = bmpData.Scan0;
-                    int pixels = width*height;
-                    byte[] rgbValues = new byte[pixels*4];
-                    Marshal.Copy(ptr, rgbValues, 0, pixels*4);
+                    int pixels = width * height;
+                    byte[] rgbValues = new byte[pixels * 4];
+                    Marshal.Copy(ptr, rgbValues, 0, pixels * 4);
                     bitmap.UnlockBits(bmpData);
                     encoder.AddImage(rgbValues);
-                    bitmap.Dispose();
+                    Thread.Sleep(1000/24);
                 }
-            }
+            });
+            Console.ReadLine();
+            stop = true;
+
+            Thread.Sleep(1000);
+
             //Flush
             encoder.Flush();
-
             pusher.StopPush();
             pusher.Dispose();
             encoder.Dispose();
+
+            graphic.Dispose();
+            bitmap.Dispose();
+
             Console.WriteLine("Finished!");
             Console.ReadLine();
+
         }
     }
 }

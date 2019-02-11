@@ -9,11 +9,11 @@
 #include "VideoFrame.h"
 
 
-int __stdcall CreateEncoder(void** hEncoder, int width, int height, int frameRate, void* frameEncodedCallback)
+int __stdcall CreateEncoder(void** hEncoder, int width, int height, int frame_rate, int bit_rate, void* frameEncodedCallback)
 {
 	try
 	{
-		void* result = static_cast<void*>(new Encoder(width, height, frameRate, static_cast<FrameEncodedCallback>(frameEncodedCallback)));
+		const auto result = static_cast<void*>(new Encoder(width, height, frame_rate, bit_rate, static_cast<FrameEncodedCallback>(frameEncodedCallback)));
 		*hEncoder = result;
 	}
 	catch(ErrorCode e)
@@ -29,12 +29,12 @@ void __stdcall DestroyEncoder(void* hEncoder)
 	delete static_cast<Encoder*>(hEncoder);
 }
 
-int __stdcall AddImage(void* hEncoder, char* imageData, int dataLength)
+int __stdcall AddImage(void* hEncoder, uint8_t* image_data)
 {
-	Encoder* encoder = static_cast<Encoder*>(hEncoder);
+	auto encoder = static_cast<Encoder*>(hEncoder);
 	try
 	{
-		encoder->AddImage(imageData, dataLength);
+		encoder->AddImage(image_data);
 	}
 	catch (ErrorCode e)
 	{
@@ -45,7 +45,7 @@ int __stdcall AddImage(void* hEncoder, char* imageData, int dataLength)
 
 int __stdcall FlushEncoder(void* hEncoder)
 {
-	Encoder* encoder = static_cast<Encoder*>(hEncoder);
+	auto encoder = static_cast<Encoder*>(hEncoder);
 	try
 	{
 		encoder->Flush();
@@ -63,7 +63,7 @@ int __stdcall CreatePusher(void** hPusher)
 {
 	try
 	{
-		void* result = static_cast<void*>(new Pusher());
+		const auto result = static_cast<void*>(new Pusher());
 		*hPusher = result;
 	}
 	catch (ErrorCode e)
@@ -79,12 +79,13 @@ void __stdcall DestroyPusher(void* hPusher)
 	delete static_cast<Pusher*>(hPusher);
 }
 
+
 int __stdcall StartPush(void* hPusher, const char* url, int width, int height, int frameRate)
 {
-	Pusher* pusher = static_cast<Pusher*>(hPusher);
+	auto pusher = static_cast<Pusher*>(hPusher);
 	try
 	{
-		pusher->StartPush(url, width, height, frameRate);
+		pusher->start_push(url, width, height, frameRate);
 	}
 	catch (ErrorCode e)
 	{
@@ -95,10 +96,10 @@ int __stdcall StartPush(void* hPusher, const char* url, int width, int height, i
 
 int __stdcall StopPush(void* hPusher)
 {
-	Pusher* pusher = static_cast<Pusher*>(hPusher);
+	auto pusher = static_cast<Pusher*>(hPusher);
 	try
 	{
-		pusher->StopPush();
+		pusher->stop_push();
 	}
 	catch (ErrorCode e)
 	{
@@ -109,11 +110,11 @@ int __stdcall StopPush(void* hPusher)
 
 int __stdcall PushPacket(void* hPusher, void* hPacket)
 {
-	Pusher* pusher = static_cast<Pusher*>(hPusher);
-	VideoPacket* videoPacket = static_cast<VideoPacket*>(hPacket);
+	auto pusher = static_cast<Pusher*>(hPusher);
+	const auto video_packet = static_cast<VideoPacket*>(hPacket);
 	try
 	{
-		pusher->PushVideoPacket(videoPacket);
+		pusher->push_video_packet(video_packet);
 	}
 	catch (ErrorCode e)
 	{
@@ -126,59 +127,59 @@ int __stdcall PushPacket(void* hPusher, void* hPacket)
 
 int __stdcall GetFrameIndex(void* hFrame)
 {
-	VideoFrame* videoFrame = static_cast<VideoFrame*>(hFrame);
-	return videoFrame->GetIndex();
+	auto video_frame = static_cast<VideoFrame*>(hFrame);
+	return video_frame->get_index();
 }
 
 int __stdcall GetFrameSize(void* hFrame)
 {
-	VideoFrame* videoFrame = static_cast<VideoFrame*>(hFrame);
-	return videoFrame->GetSize();
+	VideoFrame* video_frame = static_cast<VideoFrame*>(hFrame);
+	return video_frame->get_size();
 }
 
 
 char* __stdcall GetFrameData(void* hFrame)
 {
-	VideoFrame* videoFrame = static_cast<VideoFrame*>(hFrame);
-	return videoFrame->GetData();
+	auto video_frame = static_cast<VideoFrame*>(hFrame);
+	return video_frame->get_data();
 }
 
 void __stdcall DestroyFrame(void* hFrame)
 {
-	VideoFrame* videoFrame = static_cast<VideoFrame*>(hFrame);
-    delete videoFrame;
+	const auto video_frame = static_cast<VideoFrame*>(hFrame);
+    delete video_frame;
 }
 
 
 int __stdcall GetPacketIndex(void* hPacket)
 {
-	VideoPacket* videoPacket = static_cast<VideoPacket*>(hPacket);
-	return videoPacket->GetIndex();
+	const auto video_packet = static_cast<VideoPacket*>(hPacket);
+	return video_packet->get_index();
 }
 
 int __stdcall GetPacketSize(void* hPacket)
 {
-	VideoPacket* videoPacket = static_cast<VideoPacket*>(hPacket);
-	return videoPacket->GetSize();
+	const auto video_packet = static_cast<VideoPacket*>(hPacket);
+	return video_packet->get_size();
 }
 
 
 char* __stdcall GetPacketData(void* hPacket)
 {
-	VideoPacket* videoPacket = static_cast<VideoPacket*>(hPacket);
-	return videoPacket->GetData();
+	const auto video_packet = static_cast<VideoPacket*>(hPacket);
+	return video_packet->get_data();
 }
 
 int __stdcall DestroyPacket(void* hPacket)
 {
-	VideoPacket* videoPacket = static_cast<VideoPacket*>(hPacket);
+	const auto video_packet = static_cast<VideoPacket*>(hPacket);
 	try
 	{
-		if(videoPacket->GetReferenced())
+		if(video_packet->get_referenced())
 		{
 			throw ERROR_PACKET_REFERENCED;
 		}
-		delete videoPacket;
+		delete video_packet;
 	}
 	catch (ErrorCode e)
 	{

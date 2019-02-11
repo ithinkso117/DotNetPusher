@@ -7,135 +7,236 @@ extern "C"
 {
 #include "libavutil/frame.h"
 #include "libavformat/avformat.h"
-#include "libavutil/imgutils.h"
+#include "libavutil/opt.h"
 }
 
 
-Encoder::Encoder(int width, int height, int frameRate, FrameEncodedCallback frameEncodedCallback)
+Encoder::Encoder(int width, int height, int frame_rate, int bit_rate, FrameEncodedCallback frame_encoded_callback)
 {
+	m_sws_context = nullptr;
+	m_bgra_frame = nullptr;
+	m_yuv_frame = nullptr;
+	m_codec_context = nullptr;
+	m_width = width;
+	m_height = height;
+	m_frame_rate = frame_rate;
+	m_encoded_index = 0;
+	m_frame_encoded_callback = frame_encoded_callback;
+
 	//Use av_log_set_level will make the application very slow.
 	//av_log_set_level(AV_LOG_DEBUG);
 	av_register_all();
 	avcodec_register_all();
+	
+	//Try open qsv
+	init_qsv_context(m_width, m_height, m_frame_rate, bit_rate);
+	if (m_codec_context != nullptr)
+	{
+		Utils::write_log("Try use Intel QuickSync Video encoder.");
+	}
 
-	m_width = width;
-	m_height = height;
-	m_encodedIndex = 0;
-	m_frameEncoded = frameEncodedCallback;
+	if (m_codec_context == nullptr)
+	{
+		init_h264_context(m_width, m_height, m_frame_rate, bit_rate);
+		Utils::write_log("Use software encoder.");
+	}
 
-	//Try find H264 codec
-	AVCodec* codec = avcodec_find_encoder(AV_CODEC_ID_H264);
+	if (m_codec_context == nullptr)
+	{
+		Utils::write_log("Can not create CodecContext.");
+		throw ERROR_CREATE_ENCODER;
+	}
+
+	m_yuv_frame = av_frame_alloc();
+	if (m_yuv_frame == nullptr)
+	{
+		Utils::write_log("Can not create Frame.");
+		free_all();
+		throw ERROR_CREATE_ENCODER;
+	}
+	m_yuv_frame->pts = 0;
+	m_yuv_frame->format = m_codec_context->pix_fmt;
+	m_yuv_frame->width = m_width;
+	m_yuv_frame->height = m_height;
+
+	//Fill the yuv frame.
+	const auto yuv_frame_data_length = m_width * m_height * 3 / 2;
+	const auto yuv_frame_data = new uint8_t[yuv_frame_data_length];
+	memset(yuv_frame_data, 0, yuv_frame_data_length);
+	if (Utils::fill_frame(m_yuv_frame, yuv_frame_data) < 0)
+	{
+		Utils::write_log("init yuv frame fail.");
+		throw ERROR_CREATE_ENCODER;
+	}
+
+	m_bgra_frame = av_frame_alloc();
+	if (m_bgra_frame == nullptr)
+	{
+		Utils::write_log("Can not create BGRA frame.");
+		free_all();
+		throw ERROR_CREATE_ENCODER;
+	}
+	m_bgra_frame->format = AV_PIX_FMT_BGRA;
+	m_bgra_frame->width = m_width;
+	m_bgra_frame->height = m_height;
+
+	m_sws_context = sws_getContext(m_codec_context->width, m_codec_context->height, AV_PIX_FMT_BGRA, m_codec_context->width, m_codec_context->height, m_codec_context->pix_fmt, SWS_BICUBIC, nullptr, nullptr, nullptr);
+	if (m_sws_context == nullptr)
+	{
+		Utils::write_log("Can not create SwsContext.");
+		free_all();
+		throw ERROR_CREATE_ENCODER;
+	}
+}
+
+
+Encoder::~Encoder()
+{
+	free_all();
+}
+
+
+void Encoder::encode_frame(bool flush)
+{
+	if (avcodec_send_frame(m_codec_context, flush ? nullptr : m_yuv_frame) == 0)
+	{
+		const auto eof = AVERROR(AVERROR_EOF);
+		while (true)
+		{
+			auto av_packet = Utils::create_av_packet();
+			const auto ret = avcodec_receive_packet(m_codec_context, av_packet);
+			if (ret == eof || ret < 0)
+			{
+				av_packet_free(&av_packet);
+				av_packet = nullptr;
+				break;
+			}
+			const auto video_packet = new VideoPacket(av_packet, m_encoded_index);
+			if (m_frame_encoded_callback != nullptr)
+			{
+				m_frame_encoded_callback(this, video_packet);
+			}
+			else
+			{
+				delete video_packet;
+			}
+			m_encoded_index++;
+		}
+	}
+}
+
+void Encoder::free_all()
+{
+	m_frame_encoded_callback = nullptr;
+	if (m_yuv_frame != nullptr)
+	{
+		av_frame_free(&m_yuv_frame);
+		m_yuv_frame = nullptr;
+	}
+	if (m_bgra_frame != nullptr)
+	{
+		av_frame_free(&m_bgra_frame);
+		m_bgra_frame = nullptr;
+	}
+	if (m_sws_context != nullptr)
+	{
+		sws_freeContext(m_sws_context);
+		m_sws_context = nullptr;
+	}
+	if (m_codec_context != nullptr)
+	{
+		avcodec_free_context(&m_codec_context);
+		m_codec_context = nullptr;
+	}
+}
+
+void Encoder::init_qsv_context(int width, int height, int frame_rate, int bit_rate)
+{
+	const auto codec = avcodec_find_encoder_by_name("h264_qsv");
 	if (codec == nullptr)
 	{
-		throw ERROR_NO_CODEC;
+		return;
 	}
-	m_codecContext = avcodec_alloc_context3(codec);
-	m_codecContext->bit_rate = 1024*1024;// put sample parameters   
-	m_codecContext->width = m_width; //Width
-	m_codecContext->height = m_height; //Height
-	m_codecContext->time_base = {1,frameRate};  //frames per second
-	m_codecContext->gop_size = 10; // emit one intra frame every ten frames   
-	m_codecContext->max_b_frames = 1; //B frames
-	m_codecContext->thread_count = 1; //Thread used.
-	m_codecContext->pix_fmt = AV_PIX_FMT_YUV420P; //YUV420 for H264
+	auto codec_context = avcodec_alloc_context3(codec);
+	if (codec_context == nullptr)
+	{
+		return;
+	}
+
+	codec_context->width = width; //Width
+	codec_context->height = height; //Height
+	codec_context->time_base = { 1, frame_rate };  //Frames per second
+	codec_context->pix_fmt = *codec->pix_fmts;
+	codec_context->thread_count = 1; //Use single thread.
+	codec_context->bit_rate = bit_rate;// Put sample parameters   
+	codec_context->gop_size = frame_rate; // Set gop size to the frame rate.    
+	codec_context->max_b_frames = 1; //B frames
+
+	//qsv is very fast, so here can use profile main.
+	av_opt_set(codec_context->priv_data, "profile", "main", 0);
+
+	if (avcodec_open2(codec_context, codec, nullptr) < 0)
+	{
+		avcodec_free_context(&codec_context);
+		return;
+	}
+	m_codec_context = codec_context;
+}
+
+void Encoder::init_h264_context(int width, int height, int frame_rate, int bit_rate)
+{
+	const auto codec = avcodec_find_encoder(AV_CODEC_ID_H264);
+	if (codec == nullptr)
+	{
+		return;
+	}
+	auto codec_context = avcodec_alloc_context3(codec);
+	if (codec_context == nullptr)
+	{
+		return;
+	}
+
+	codec_context->width = width; //Width
+	codec_context->height = height; //Height
+	codec_context->time_base = { 1, frame_rate };  //Frames per second
+	codec_context->thread_count = 1; //Use single thread.
+	codec_context->pix_fmt = *codec->pix_fmts;//AV_PIX_FMT_YUV420P; //YUV420 for H264
+	codec_context->bit_rate = bit_rate;// Put sample parameters   
+	codec_context->gop_size = frame_rate; // Set gop size to the frame rate.   
+	codec_context->max_b_frames = 1; //B frames
 
 	//Set parameters
 	AVDictionary *options = nullptr;
 	av_dict_set(&options, "profile", "baseline", 0);
 	av_dict_set(&options, "preset", "fast", 0);
 
-	//Open H264 codec
-	if (avcodec_open2(m_codecContext, codec, &options) < 0)
+	if (avcodec_open2(codec_context, codec, &options) < 0)
 	{
-		throw ERROR_OPEN_CODEC;
+		av_dict_free(&options);
+		avcodec_free_context(&codec_context);
+		return;
 	}
-
-	m_yuvFrame = av_frame_alloc();
-	m_yuvFrame->pts = 0;
-	m_yuvFrame->format = AV_PIX_FMT_YUV420P;
-	m_yuvFrame->width = m_codecContext->width;
-	m_yuvFrame->height = m_codecContext->height;
-	
-	m_swsContext = sws_getContext(m_codecContext->width, m_codecContext->height, AV_PIX_FMT_BGRA, m_codecContext->width, m_codecContext->height, AV_PIX_FMT_YUV420P, SWS_BICUBIC, nullptr, nullptr, nullptr);
+	m_codec_context = codec_context;
 }
 
-Encoder::~Encoder()
-{
-	m_frameEncoded = nullptr;
-	av_frame_free(&m_yuvFrame);
-	avcodec_free_context(&m_codecContext);
-	sws_freeContext(m_swsContext);
-}
 
 void Encoder::Flush()
 {
-	//Flush encoder
-	if (avcodec_send_frame(m_codecContext, nullptr) == 0)
-	{
-		int eof = AVERROR(AVERROR_EOF);
-		while (1)
-		{
-			AVPacket* avPacket = CreateAVPacket();
-			int ret = avcodec_receive_packet(m_codecContext, avPacket);
-			if (ret == eof || ret < 0)
-			{
-				av_packet_free(&avPacket);
-				break;
-			}
-			VideoPacket* videoPacket = new VideoPacket(avPacket, m_encodedIndex);
-			if (m_frameEncoded != nullptr)
-			{
-				m_frameEncoded(this,videoPacket);
-			}
-			m_encodedIndex++;
-
-		}
-	}
+	encode_frame(true);
 }
 
 
-void  Encoder::AddImage(char* imageData, int dataLength)
+void  Encoder::AddImage(uint8_t* image_data)
 {
-	uint8_t* bgraBuffer = new uint8_t[dataLength]; //bgra buffer
-	uint8_t* yuvBuffer = new uint8_t[(m_width * m_height * 3) / 2]; // size for YUV 420  
-	memcpy(bgraBuffer, imageData, dataLength);
- 
-
-	AVFrame* bgraFrame = av_frame_alloc();
-	bgraFrame->format = AV_PIX_FMT_BGRA;
-	bgraFrame->width = m_width;
-	bgraFrame->height = m_height;
-
 	//Fill rgb frame
-	av_image_fill_arrays(bgraFrame->data, bgraFrame->linesize, bgraBuffer, AV_PIX_FMT_BGRA, m_width, m_height, 1);
-
-	//Fill yuv Frame  
-	av_image_fill_arrays(m_yuvFrame->data, m_yuvFrame->linesize, yuvBuffer, AV_PIX_FMT_YUV420P, m_width, m_height, 1);
-
-	//Convert ARGB to YUV
-	sws_scale(m_swsContext, bgraFrame->data, bgraFrame->linesize, 0, m_height, m_yuvFrame->data, m_yuvFrame->linesize);
-
-	m_yuvFrame->pts++;
-	if (avcodec_send_frame(m_codecContext, m_yuvFrame) == 0)
-	{	
-		while (1)
-		{
-			AVPacket* avPacket = CreateAVPacket();
-			int ret = avcodec_receive_packet(m_codecContext, avPacket);
-			if(ret < 0)
-			{
-				av_packet_free(&avPacket);
-				break;
-			}
-			VideoPacket* videoPacket = new VideoPacket(avPacket, m_encodedIndex);
-			if (m_frameEncoded != nullptr)
-			{
-				m_frameEncoded(this,videoPacket);
-			}
-			m_encodedIndex++;
-		}
+	if (Utils::fill_frame(m_bgra_frame, image_data) < 0)
+	{
+		Utils::write_log("Fill BGRA frame fail.");
+		throw ERROR_ENCODE;
 	}
-	delete[] yuvBuffer;
-	delete[] bgraBuffer;
-	av_frame_free(&bgraFrame);
+
+	//Convert bgra to yuv
+	Utils::convert_frame(m_sws_context, m_bgra_frame, m_yuv_frame);
+	m_yuv_frame->pts++;
+	encode_frame(false);
 }

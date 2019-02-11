@@ -14,14 +14,12 @@ namespace DotNetPusher.Encoders
 
         public event EventHandler<FrameEncodedEventArgs> FrameEncoded;
 
-        public IntPtr Handle => _encoderHandle;
-
-        public Encoder(int width, int height, int frameRate)
+        public Encoder(int width, int height, int frameRate, int bitRate)
         {
             _myFrameEncodedCallback = MyFrameEncodedCallback;
             var result = Environment.Is64BitProcess ? 
-                  Interop64.CreateEncoder(out _encoderHandle, width, height, frameRate, _myFrameEncodedCallback) : 
-                  Interop32.CreateEncoder(out _encoderHandle, width, height, frameRate, _myFrameEncodedCallback);
+                  Interop64.CreateEncoder(out _encoderHandle, width, height, frameRate, bitRate,_myFrameEncodedCallback) : 
+                  Interop32.CreateEncoder(out _encoderHandle, width, height, frameRate, bitRate,_myFrameEncodedCallback);
             if (result != 0)
             {
                 throw new PusherException(result);

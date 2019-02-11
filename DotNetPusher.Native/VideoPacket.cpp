@@ -12,34 +12,35 @@ VideoPacket::VideoPacket(AVPacket* avPacket, int index)
 VideoPacket::~VideoPacket()
 {
 	av_packet_free(&m_packet);
+	m_packet = nullptr;
 }
 
-int VideoPacket::GetIndex()
+int VideoPacket::get_index() const
 {
 	return m_index;
 }
 
-int VideoPacket::GetSize()
+int VideoPacket::get_size() const
 {
 	return m_packet->size;
 }
 
-char* VideoPacket::GetData()
+char* VideoPacket::get_data() const
 {
 	return reinterpret_cast<char*>(m_packet->data);
 }
 
-AVPacket* VideoPacket::GetPacket()
+AVPacket* VideoPacket::get_packet() const
 {
 	return m_packet;
 }
 
-void VideoPacket::SetReferenced(bool value)
+void VideoPacket::set_referenced(bool value)
 {
 	m_referenced = value;
 }
 
-bool VideoPacket::GetReferenced()
+bool VideoPacket::get_referenced() const
 {
 	return m_referenced;
 }

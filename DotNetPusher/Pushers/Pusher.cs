@@ -1,5 +1,4 @@
 ﻿using System;
-using DotNetPusher.Encoders;
 using DotNetPusher.VideoPackets;
 
 namespace DotNetPusher.Pushers
@@ -8,8 +7,6 @@ namespace DotNetPusher.Pushers
     {
         private readonly IntPtr _pusherHandle;
         private bool _disposed;
-
-        public IntPtr Handle => _pusherHandle;
 
         public Pusher()
         {

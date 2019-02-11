@@ -12,12 +12,12 @@ class VideoPacket
 	bool m_referenced;
 	int m_index;
 public:
-	VideoPacket(AVPacket* avPacket, int index);
+	VideoPacket(AVPacket* av_packet, int index);
 	~VideoPacket();
-	int GetIndex();
-	int GetSize();
-	char* GetData();
-	AVPacket* GetPacket();
-	void SetReferenced(bool value);
-	bool GetReferenced();
+	int get_index() const;
+	int get_size() const;
+	char* get_data() const;
+	AVPacket* get_packet() const;
+	void set_referenced(bool value);
+	bool get_referenced() const;
 };
